@@ -6,3 +6,4 @@ mlruns/
 .data/
 .DS_Store
 *.json 
+data/iris.csv
