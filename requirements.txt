@@ -9,7 +9,7 @@ google-cloud-storage
 google-cloud-bigquery
 pyyaml # For config file parsing
 hyperopt # For hyperparameter tuning
-pytest
+pytest>=7.0,<9.0
 joblib
 pandas
 pyarrow

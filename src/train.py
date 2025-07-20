@@ -34,7 +34,7 @@ args = parser.parse_args()
 # ----------------- MLFLOW SETUP -----------------
 # IMPORTANT: Verify this IP address. It might change if your VM reboots.
 # Use 'curl ifconfig.me' on your VM to get the current external IP.
-mlflow.set_tracking_uri("http://35.224.61.235:8100/")
+mlflow.set_tracking_uri("http://34.66.42.6:8100/")
 mlflow.set_experiment("Iris-DecisionTree-Tuning")
 
 # ----------------- LOAD INPUT DATA -----------------
