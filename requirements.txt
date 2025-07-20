@@ -9,7 +9,10 @@ google-cloud-storage
 google-cloud-bigquery
 pyyaml # For config file parsing
 hyperopt # For hyperparameter tuning
-pytest
 joblib
 pandas
 pyarrow
+seaborn
+black
+flake8
+cml

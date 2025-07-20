@@ -2,94 +2,134 @@ name: Model Sanity Check
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main] # Trigger this workflow on pull requests to the main branch
 
 permissions:
-  pull-requests: write
-  contents: read
+  pull-requests: write # Allows the workflow to comment on pull requests (for CML)
+  contents: write      # Allows the workflow to create/delete files (e.g., model, artifacts, gcp-key.json)
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest # Specify the runner environment
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4 # Action to check out your repository code
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v5 # Action to set up a specific Python version
         with:
-          python-version: '3.10'
+          python-version: '3.10' # Ensure this matches your project's Python version
+
+      - name: Upgrade pip, setuptools, and wheel
+        run: |
+          # Crucial step to ensure pip and setuptools are up-to-date
+          # This helps prevent issues with old package distribution methods (like HTTP 403 errors)
+          python -m pip install --upgrade pip setuptools wheel
+          echo "Pip, setuptools, and wheel upgraded successfully."
 
       - name: Install dependencies
         run: |
+          # Create and activate a Python virtual environment for isolated dependencies
           python -m venv .venv
           source .venv/bin/activate
-          pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install dvc[gcs] black flake8 pytest cml
 
+          # Upgrade pip inside the virtual environment
+          pip install --upgrade pip
+
+          # Install project-specific requirements from requirements.txt
+          pip install -r requirements.txt
+          
       - name: Set up GCP credentials and authenticate
         env:
+          # Securely retrieve GCP credentials from GitHub Secrets
           GCP_B64: ${{ secrets.GCP_CREDENTIALS_B64 }}
         run: |
-          set -e
+          set -e # Exit immediately if any command fails
+
+          # Decode the base64-encoded GCP service account key and save it to a file
           echo "$GCP_B64" | base64 -d > gcp-key.json
+          # Set the GOOGLE_APPLICATION_CREDENTIALS environment variable for gcloud and DVC
           echo "GOOGLE_APPLICATION_CREDENTIALS=$(pwd)/gcp-key.json" >> $GITHUB_ENV
           export GOOGLE_APPLICATION_CREDENTIALS=$(pwd)/gcp-key.json
 
-          python3 -m json.tool gcp-key.json > /dev/null && echo "✓ Valid JSON"
+          # Validate the JSON key file (optional, but good for debugging credential issues)
+          python3 -m json.tool gcp-key.json > /dev/null && echo "✓ Valid JSON" || { echo "Error: gcp-key.json is not valid JSON"; exit 1; }
+
+          # Install Google Cloud CLI (gcloud)
           sudo apt-get update && sudo apt-get install -y google-cloud-cli
 
+          # Authenticate gcloud CLI using the service account key
           gcloud auth activate-service-account --key-file=gcp-key.json
-          gcloud config set project mlopsweek1
+          # Set the default GCP project for gcloud commands
+          gcloud config set project mlopsweek1 # IMPORTANT: Replace with your actual GCP Project ID
 
+          # Activate the virtual environment to ensure DVC commands use the installed DVC
           source .venv/bin/activate
-          dvc remote modify gcsremote credentialpath $(pwd)/gcp-key.json
+
+          # Configure DVC remote to use the GCP credentials for accessing your GCS bucket
+          # 'myremote' should match the name you configured in your .dvc/config
+          dvc remote modify myremote credentialpath $(pwd)/gcp-key.json
+          # Pull DVC-versioned data (e.g., iris.parquet) from your remote storage
           dvc pull -v
 
       - name: Run DVC pipeline (train, evaluate, plot)
         run: |
-          source .venv/bin/activate
-          dvc repro
+          source .venv/bin/activate # Activate venv
+          dvc repro # Execute the DVC pipeline defined in dvc.yaml (e.g., runs src/train.py)
 
       - name: Auto-format with Black
         run: |
           source .venv/bin/activate
-          black --check --diff src/ tests/ || true
+          # Initialize or overwrite report.md for formatting results
           echo "## Code Formatting (Black)" > report.md
-          black --check --diff src/ tests/ >> report.md 2>&1 || echo "Formatting issues found" >> report.md
+          # Run Black check and diff, capture output, allow command to fail (for reporting)
+          black_output=$(black --check --diff src/ tests/ 2>&1 || true)
+          echo "$black_output" >> report.md
+          # Add a note if formatting issues were found
+          if [[ -n "$black_output" ]]; then
+            echo "Formatting issues found" >> report.md
+          fi
           echo "" >> report.md
 
       - name: Lint with Flake8
         run: |
           source .venv/bin/activate
           echo "## Linting Results (Flake8)" >> report.md
-          flake8 src/ tests/ --max-line-length=88 --extend-ignore=E203,W503 >> report.md 2>&1 || echo "Linting issues found" >> report.md
+          # Run Flake8, capture output, allow command to fail
+          flake8_output=$(flake8 src/ tests/ --max-line-length=88 --extend-ignore=E203,W503 2>&1 || true)
+          echo "$flake8_output" >> report.md
+          # Add a note if linting issues were found
+          if [[ -n "$flake8_output" ]]; then
+            echo "Linting issues found" >> report.md
+          fi
           echo "" >> report.md
 
-      - name: Run pytest and save report
+      - name: Run unittest and save report
         run: |
           source .venv/bin/activate
           echo "## Test Results" >> report.md
-          pytest --tb=short --disable-warnings >> report.md 2>&1 || echo "Tests failed" >> report.md
+          # Run unittest's discovery feature to find and execute tests
+          # Output is redirected to report.md
+          python -m unittest discover >> report.md 2>&1 || echo "Tests failed" >> report.md
           echo "Tests completed on $(date)" >> report.md
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v4 # Action to upload workflow artifacts
         with:
-          name: model-artifacts
+          name: model-artifacts # Name of the artifact bundle
           path: |
-            model.pkl
-            metrics.png
-            report.md
-            *.json
-            *.csv
-            confusion_matrix.txt
+            models/test_model.joblib # The trained model file
+            metrics.json             # Metrics generated by train.py
+            report.md                # The combined formatting, linting, and test report
+            confusion_matrix.txt     # Confusion matrix generated by test_train.py
+            # Add any other relevant output files here (e.g., plots, raw data for inspection)
+            # Example: data/iris.parquet
 
       - name: Comment test results with CML
         env:
-          REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }} # GitHub token for CML authentication
         run: |
           source .venv/bin/activate
+          # Use CML to create a comment on the pull request with the content of report.md
           cml comment create report.md

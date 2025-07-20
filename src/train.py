@@ -14,8 +14,9 @@ from hyperopt import hp, fmin, tpe, Trials, STATUS_OK
 import json
 import os
 import sys
-
+# Will implement feast, mlflow, model training and hyper parameter tuning 
 # Ensure the feast directory is in the Python path
+print("main code for feast, mlflow,model training")
 sys.path.append(os.path.join(os.getcwd(), "feast"))
 try:
     from iris_features import iris_view, flower # Assuming 'flower' is your entity
@@ -33,7 +34,7 @@ args = parser.parse_args()
 # ----------------- MLFLOW SETUP -----------------
 # IMPORTANT: Verify this IP address. It might change if your VM reboots.
 # Use 'curl ifconfig.me' on your VM to get the current external IP.
-mlflow.set_tracking_uri("http://35.224.61.235:8100/")
+mlflow.set_tracking_uri("http://34.66.42.6:8100/")
 mlflow.set_experiment("Iris-DecisionTree-Tuning")
 
 # ----------------- LOAD INPUT DATA -----------------
