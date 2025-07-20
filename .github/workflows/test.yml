@@ -41,8 +41,9 @@ jobs:
           pip install -r requirements.txt
 
           # Install additional tools needed for CI/CD tasks (DVC, Black, Flake8, CML)
-          # Note: 'pytest' is intentionally omitted here as we are using 'unittest'
-          pip install dvc[gcs] black flake8 cml
+          # Pinning versions of 'black' and 'tqdm' to resolve "resolution-too-deep" errors.
+          # 'tqdm' is a dependency of DVC, so pinning it here helps.
+          pip install dvc[gcs] black==24.4.2 flake8 cml tqdm==4.67.1
 
       - name: Set up GCP credentials and authenticate
         env:
