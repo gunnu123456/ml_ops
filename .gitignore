@@ -7,3 +7,5 @@ mlruns/
 .DS_Store
 *.json 
 data/iris.csv
+/feast_repo_state.txt
+/metrics.png

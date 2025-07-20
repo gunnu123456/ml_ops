@@ -1,0 +1,95 @@
+name: Model Sanity Check
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  pull-requests: write
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          python -m venv .venv
+          source .venv/bin/activate
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install dvc[gcs] black flake8 pytest cml
+
+      - name: Set up GCP credentials and authenticate
+        env:
+          GCP_B64: ${{ secrets.GCP_CREDENTIALS_B64 }}
+        run: |
+          set -e
+          echo "$GCP_B64" | base64 -d > gcp-key.json
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$(pwd)/gcp-key.json" >> $GITHUB_ENV
+          export GOOGLE_APPLICATION_CREDENTIALS=$(pwd)/gcp-key.json
+
+          python3 -m json.tool gcp-key.json > /dev/null && echo "✓ Valid JSON"
+          sudo apt-get update && sudo apt-get install -y google-cloud-cli
+
+          gcloud auth activate-service-account --key-file=gcp-key.json
+          gcloud config set project mlopsweek1
+
+          source .venv/bin/activate
+          dvc remote modify gcsremote credentialpath $(pwd)/gcp-key.json
+          dvc pull -v
+
+      - name: Run DVC pipeline (train, evaluate, plot)
+        run: |
+          source .venv/bin/activate
+          dvc repro
+
+      - name: Auto-format with Black
+        run: |
+          source .venv/bin/activate
+          black --check --diff src/ tests/ || true
+          echo "## Code Formatting (Black)" > report.md
+          black --check --diff src/ tests/ >> report.md 2>&1 || echo "Formatting issues found" >> report.md
+          echo "" >> report.md
+
+      - name: Lint with Flake8
+        run: |
+          source .venv/bin/activate
+          echo "## Linting Results (Flake8)" >> report.md
+          flake8 src/ tests/ --max-line-length=88 --extend-ignore=E203,W503 >> report.md 2>&1 || echo "Linting issues found" >> report.md
+          echo "" >> report.md
+
+      - name: Run pytest and save report
+        run: |
+          source .venv/bin/activate
+          echo "## Test Results" >> report.md
+          pytest --tb=short --disable-warnings >> report.md 2>&1 || echo "Tests failed" >> report.md
+          echo "Tests completed on $(date)" >> report.md
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: model-artifacts
+          path: |
+            model.pkl
+            metrics.png
+            report.md
+            *.json
+            *.csv
+            confusion_matrix.txt
+
+      - name: Comment test results with CML
+        env:
+          REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          source .venv/bin/activate
+          cml comment create report.md

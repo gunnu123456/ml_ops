@@ -1,0 +1,15 @@
+pandas
+scikit-learn
+dvc[gs]
+feast[gcp,redis] # Assumes both BigQuery and Redis usage
+psycopg2-binary # For Cloud SQL PostgreSQL
+sqlalchemy # For MLflow SQL backend
+mlflow[gcs,sql] # GCS for artifacts, SQL for backend
+google-cloud-storage
+google-cloud-bigquery
+pyyaml # For config file parsing
+hyperopt # For hyperparameter tuning
+pytest
+joblib
+pandas
+pyarrow

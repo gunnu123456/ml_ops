@@ -1,0 +1,105 @@
+schema: '2.0'
+stages:
+  prep_feast_data:
+    cmd: python src/prep_feast_data.py --in_file data/iris.csv --out_file 
+      data/iris_feast.parquet
+    deps:
+    - path: data/iris.csv
+      hash: md5
+      md5: 9c22f7cf3714d0c194f5f43a6276ca9d
+      size: 3861
+    - path: src/prep_feast_data.py
+      hash: md5
+      md5: fd55498752ca0792be0c36fdc5b48ec3
+      size: 835
+    outs:
+    - path: data/iris_feast.parquet
+      hash: md5
+      md5: b335b787b9220d6674537113cf8cb745
+      size: 7156
+  feast_apply:
+    cmd: bash -c "cd feast && feast apply && cd .. && echo Feast applied at 
+      $(date) > feast_repo_state.txt"
+    deps:
+    - path: data/iris_feast.parquet
+      hash: md5
+      md5: b335b787b9220d6674537113cf8cb745
+      size: 7156
+    - path: feast/iris_features.py
+      hash: md5
+      md5: 087b4a678aa9c63744ce9fcf3b834514
+      size: 996
+    outs:
+    - path: feast_repo_state.txt
+      hash: md5
+      md5: 3c48efce9ead6f7c626835d737324b98
+      size: 46
+  train_model:
+    cmd: python src/train.py --data data/iris.parquet --model_out 
+      models/model.joblib
+    deps:
+    - path: data/iris.parquet
+      hash: md5
+      md5: f17158f6c7a0701fe24ed9d9ed36026b
+      size: 4971
+    - path: feast/iris_features.py
+      hash: md5
+      md5: 087b4a678aa9c63744ce9fcf3b834514
+      size: 996
+    - path: src/train.py
+      hash: md5
+      md5: 180733fa7ffda2a1eb30971a8625ef99
+      size: 9802
+    params:
+      params.yaml:
+        max_depth: 3
+        min_samples_split: 2
+    outs:
+    - path: metrics.json
+      hash: md5
+      md5: 987c8a35a630044b24b9ad667403631f
+      size: 32
+    - path: models/model.joblib
+      hash: md5
+      md5: 5eccc19f9512bcf0a13d489db68ad05e
+      size: 2433
+  evaluate:
+    cmd: python src/evaluate.py
+    deps:
+    - path: data/iris.parquet
+      hash: md5
+      md5: f17158f6c7a0701fe24ed9d9ed36026b
+      size: 4971
+    - path: models/model.joblib
+      hash: md5
+      md5: 5eccc19f9512bcf0a13d489db68ad05e
+      size: 2433
+    - path: src/evaluate.py
+      hash: md5
+      md5: c1bff1a4cf2db21cedc59d0e89f2b42d
+      size: 1903
+    outs:
+    - path: report.md
+      hash: md5
+      md5: 0a44e6f54a17e9bec80e72cf33cdd430
+      size: 530
+  plot_metrics:
+    cmd: python src/plot_metrics.py
+    deps:
+    - path: data/iris.parquet
+      hash: md5
+      md5: f17158f6c7a0701fe24ed9d9ed36026b
+      size: 4971
+    - path: models/model.joblib
+      hash: md5
+      md5: 5eccc19f9512bcf0a13d489db68ad05e
+      size: 2433
+    - path: src/plot_metrics.py
+      hash: md5
+      md5: 062e0f5f73b28fae969334ae9a7822f8
+      size: 2532
+    outs:
+    - path: metrics.png
+      hash: md5
+      md5: 060535f18abbce928802760e10b6580d
+      size: 160177

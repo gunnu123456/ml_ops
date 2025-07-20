@@ -1,0 +1,48 @@
+stages:
+  prep_feast_data:
+    cmd: python src/prep_feast_data.py --in_file data/iris.csv --out_file data/iris_feast.parquet
+    deps:
+      - src/prep_feast_data.py
+      - data/iris.csv
+    outs:
+      - data/iris_feast.parquet
+
+  feast_apply:
+    cmd: bash -c "cd feast && feast apply && cd .. && echo Feast applied at $(date) > feast_repo_state.txt"
+    deps:
+      - feast/iris_features.py
+      - data/iris_feast.parquet
+    outs:
+      - feast_repo_state.txt
+
+  train_model:
+    cmd: python src/train.py --data data/iris.parquet --model_out models/model.joblib
+    deps:
+      - src/train.py
+      - data/iris.parquet
+      - feast/iris_features.py
+    params:
+      - max_depth
+      - min_samples_split
+    outs:
+      - models/model.joblib
+    metrics:
+      - metrics.json
+
+  evaluate:
+    cmd: python src/evaluate.py
+    deps:
+      - src/evaluate.py
+      - data/iris.parquet
+      - models/model.joblib
+    outs:
+      - report.md
+  
+  plot_metrics:
+    cmd: python src/plot_metrics.py
+    deps:
+      - src/plot_metrics.py
+      - data/iris.parquet
+      - models/model.joblib
+    outs:
+      - metrics.png
