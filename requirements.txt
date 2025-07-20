@@ -12,3 +12,6 @@ hyperopt # For hyperparameter tuning
 joblib
 pandas
 pyarrow
+seaborn
+black
+flake8
