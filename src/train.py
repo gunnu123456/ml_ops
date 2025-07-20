@@ -14,7 +14,7 @@ from hyperopt import hp, fmin, tpe, Trials, STATUS_OK
 import json
 import os
 import sys
-
+# Will implement feast, mlflow, model training and hyper parameter tuning 
 # Ensure the feast directory is in the Python path
 sys.path.append(os.path.join(os.getcwd(), "feast"))
 try:
