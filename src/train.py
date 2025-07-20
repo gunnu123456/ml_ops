@@ -16,6 +16,7 @@ import os
 import sys
 # Will implement feast, mlflow, model training and hyper parameter tuning 
 # Ensure the feast directory is in the Python path
+print("main code for feast, mlflow,model training")
 sys.path.append(os.path.join(os.getcwd(), "feast"))
 try:
     from iris_features import iris_view, flower # Assuming 'flower' is your entity
